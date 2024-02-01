@@ -111,13 +111,18 @@ def main():
         if args.max_considered_data is not None
         else "train"
     )
-    assert magicoder.utils.OPENAI_CLIENT is not None
+    # assert magicoder.utils.OPENAI_CLIENT is not None
+    print(
+        f"Downloading {args.dataset_name} with split={split} and cores={magicoder.utils.N_CORES}."
+    )
     dataset: Dataset = load_dataset(
         args.dataset_name,
         data_dir=args.data_dir,
         split=split,
         num_proc=magicoder.utils.N_CORES,
+        token="<insert-hf-token-here>",
     )
+
     random.seed(args.seed)
     # map_fn = get_map_dataset(args)
     dataset = dataset.map(
@@ -178,14 +183,30 @@ def main():
             {"role": "user", "content": prompt},
         ]
         openai_seed = args.seed + example["index"]
-        response = magicoder.utils.chat_completions_with_backoff(
-            model=args.model,
-            messages=messages,
-            max_tokens=max_new_tokens,
-            n=1,
-            temperature=args.temperature,
-            seed=openai_seed,
+
+        # response = magicoder.utils.chat_completions_with_backoff(data)
+
+        formatted_prompt = SYSTEM + prompt
+        data = {
+            "prompt": formatted_prompt,
+            "messages": messages,
+            "temperature": args.temperature,
+            "max_tokens": max_new_tokens,
+            "seed": openai_seed,
+        }
+        response = magicoder.utils.get_response_batch(
+            formatted_prompt, max_tokens=max_new_tokens, temperature=args.temperature
         )
+        print(response)
+
+        # response = magicoder.utils.chat_completions_with_backoff(
+        #     model=args.model,
+        #     messages=messages,
+        #     max_tokens=max_new_tokens, GOOD
+        #     n=1,
+        #     temperature=args.temperature, GOOD
+        #     seed=openai_seed, GOOD
+        # )
         print(openai_seed)
         choice = response.choices[0]
         if choice.finish_reason != "stop":
